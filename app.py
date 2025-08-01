@@ -12,6 +12,10 @@ CORS(app)
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
+@app.route("/", methods=["GET"])
+def index():
+    return "Bot backend is running.", 200
+
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
