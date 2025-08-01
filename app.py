@@ -10,32 +10,7 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Lazy-loaded globals
-index = None
-chunks = None
-model = None
-
-# Set your OpenAI API key
-openai.api_key = "YOUR_OPENAI_API_KEY"  # Replace with os.getenv(...) in production
-
-def get_index():
-    global index
-    if index is None:
-        index = faiss.read_index("faiss_index.pkl")
-    return index
-
-def get_chunks():
-    global chunks
-    if chunks is None:
-        with open("chunks.json", "r") as f:
-            chunks = json.load(f)
-    return chunks
-
-def get_model():
-    global model
-    if model is None:
-        model = SentenceTransformer("all-MiniLM-L6-v2")
-    return model
+openai.api_key = os.environ.get("OPENAI_API_KEY")  # Better to load from environment
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -43,29 +18,37 @@ def chat():
     if not query:
         return jsonify({"error": "No query provided"}), 400
 
-    # Lazy load everything only when needed
-    idx = get_index()
-    ch = get_chunks()
-    embedder = get_model()
+    # Lazy load FAISS index, chunks, and embedding model
+    if not hasattr(app, "index"):
+        app.index = faiss.read_index("faiss_index.pkl")
+    if not hasattr(app, "chunks"):
+        with open("chunks.json", "r") as f:
+            app.chunks = json.load(f)
+    if not hasattr(app, "model"):
+        app.model = SentenceTransformer("all-MiniLM-L6-v2")
 
-    query_vec = embedder.encode([query])
-    D, I = idx.search(np.array(query_vec), k=5)
-    context = "\n".join([ch[i]["text"] for i in I[0]])
+    query_vec = app.model.encode([query])
+    D, I = app.index.search(np.array(query_vec), k=5)
+    context = "\n".join([app.chunks[i]["text"] for i in I[0]])
 
-    try:
-        completion = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant based on the published research of Kevin Spencer McCarthy. Only use the context provided."},
-                {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"}
-            ]
-        )
-        return jsonify({"response": completion["choices"][0]["message"]["content"]})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    completion = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a helpful assistant based on the published research of Avenue McCarthy. Only use the context provided."
+            },
+            {
+                "role": "user",
+                "content": f"Context:\n{context}\n\nQuestion: {query}"
+            }
+        ]
+    )
+
+    return jsonify({"response": completion["choices"][0]["message"]["content"]})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render sets PORT env var
+    port = int(os.environ.get("PORT", 5000))  # Render sets this
     app.run(host="0.0.0.0", port=port, debug=True)
 
 
