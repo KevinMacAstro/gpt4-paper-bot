@@ -12,7 +12,7 @@ CORS(app)
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")  # Better to load from environment
 
-@app.route("/chat", methods=["POST"])
+@app.route("/")
 def chat():
     query = request.json.get("query")
     if not query:
