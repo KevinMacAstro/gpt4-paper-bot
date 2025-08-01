@@ -38,7 +38,7 @@ def chat():
         completion = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a helpful research assistant based on the published work of Avenue McCarthy. Only answer using the provided context."},
+                {"role": "system", "content": "You are a helpful research assistant based on the published work of Kevin Spencer McCarthy. Only answer using the provided context."},
                 {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"}
             ]
         )
