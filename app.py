@@ -1,24 +1,27 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, request, jsonify, send_from_directory
+import numpy as np
+import json
+import os
 import openai
 import faiss
-import json
-import numpy as np
+from flask_cors import CORS
 from sentence_transformers import SentenceTransformer
-import os
 
 app = Flask(__name__)
 CORS(app)
 
-openai.api_key = os.environ.get("OPENAI_API_KEY")  # Better to load from environment
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 @app.route("/")
+def serve_index():
+    return send_from_directory("static", "index.html")  # Serve your frontend
+
+@app.route("/chat", methods=["POST"])
 def chat():
     query = request.json.get("query")
     if not query:
         return jsonify({"error": "No query provided"}), 400
 
-    # Lazy load FAISS index, chunks, and embedding model
     if not hasattr(app, "index"):
         app.index = faiss.read_index("faiss_index.pkl")
     if not hasattr(app, "chunks"):
@@ -48,7 +51,8 @@ def chat():
     return jsonify({"response": completion["choices"][0]["message"]["content"]})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render sets this
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
